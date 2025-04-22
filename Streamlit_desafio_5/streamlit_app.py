@@ -126,3 +126,4 @@ if enviado:
         st.markdown(f"**Descrição:** {vaga['Descricao']}")
         st.markdown(f"**Salário oferecido:** {vaga['Salario']}")
         st.markdown("---")
+
