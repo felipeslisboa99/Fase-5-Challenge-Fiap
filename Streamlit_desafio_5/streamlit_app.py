@@ -5,7 +5,7 @@ import difflib
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
 # ---------- CONFIG ----------
-CAMINHO_VAGAS = "Vagas.xlsx"  
+CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
 
 # ---------- FUNÇÕES AUXILIARES ----------
 def carregar_vagas():
