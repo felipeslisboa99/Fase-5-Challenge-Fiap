@@ -8,6 +8,7 @@ st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="center
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
 
 # ---------- FUNÇÕES AUXILIARES ----------
+@st.cache_data
 def carregar_vagas():
     vagas = pd.read_excel(CAMINHO_VAGAS)
     vagas.rename(columns={
@@ -24,7 +25,6 @@ def carregar_vagas():
         "Salário pago": "Salario"
     }, inplace=True)
     return vagas
-
 
 def calcular_score(candidato, vaga):
     score = 0
@@ -77,12 +77,15 @@ def calcular_score(candidato, vaga):
     return round((score / peso_total) * 100, 2) if peso_total else 0
 
 # ---------- INTERFACE STREAMLIT ----------
+vagas_df = carregar_vagas()
+titulos_disponiveis = sorted(vagas_df["Vaga"].dropna().unique())
+
 st.title("🔍 Plataforma de Match de Vagas")
 st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
 
 with st.form("formulario_candidato"):
     st.subheader("📄 Dados do Candidato")
-    titulo = st.text_input("Título da vaga desejada")
+    titulo = st.selectbox("Título da vaga desejada", titulos_disponiveis)
     area = st.text_input("Área de interesse")
     ingles = st.selectbox("Nível de inglês", ["Nenhum", "Básico", "Intermediário", "Avançado", "Fluente"])
     espanhol = st.selectbox("Nível de espanhol", ["Nenhum", "Básico", "Intermediário", "Avançado", "Fluente"])
@@ -110,7 +113,6 @@ if enviado:
     }
 
     st.info("🔄 Processando suas informações...")
-    vagas_df = carregar_vagas()
     vagas_df["ia_score"] = vagas_df.apply(lambda row: calcular_score(candidato, row), axis=1)
     top_vagas = vagas_df.sort_values(by="ia_score", ascending=False).head(5)
 
@@ -126,4 +128,3 @@ if enviado:
         st.markdown(f"**Descrição:** {vaga['Descricao']}")
         st.markdown(f"**Salário oferecido:** {vaga['Salario']}")
         st.markdown("---")
-
