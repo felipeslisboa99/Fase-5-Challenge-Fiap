@@ -25,6 +25,7 @@ def carregar_vagas():
     }, inplace=True)
     return vagas
 
+
 def calcular_score(candidato, vaga):
     score = 0
     peso_total = 0
