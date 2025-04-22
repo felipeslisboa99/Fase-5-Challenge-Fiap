@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 import difflib
-from datetime import datetime
 
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
 # ---------- CONFIG ----------
-CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
+CAMINHO_VAGAS = "Vagas.xlsx"  
 
 # ---------- FUNÇÕES AUXILIARES ----------
 def carregar_vagas():
@@ -20,7 +19,9 @@ def carregar_vagas():
         "Outros idiomas": "Outros idiomas",
         "Disponível para viagens": "Precisa Viajar",
         "Possui equipamento próprio": "Precisa de Equipamento",
-        "Empresa": "Empresa"
+        "Empresa": "Empresa",
+        "Descrição da vaga": "Descricao",
+        "Salário pago": "Salario"
     }, inplace=True)
     return vagas
 
@@ -54,7 +55,7 @@ def calcular_score(candidato, vaga):
 
     # Equipamento
     if isinstance(candidato["Possui equipamento próprio? (Sim/Não)"], str) and isinstance(vaga["Precisa de Equipamento"], str):
-        if candidato["Possui equipamento próprio? (Sim/Não)"].lower() == "Sim" and "Não" not in vaga["Precisa de Equipamento"].lower():
+        if candidato["Possui equipamento próprio? (Sim/Não)"].lower() == "sim" and "não" not in vaga["Precisa de Equipamento"].lower():
             score += 1
         peso_total += 1
 
@@ -121,4 +122,6 @@ if enviado:
         st.markdown(f"**Cliente:** {vaga['Empresa']}")
         st.markdown(f"**Score de compatibilidade:** {vaga['ia_score']}%")
         st.markdown(f"**Requisitos:** {vaga['Habilidades']}")
+        st.markdown(f"**Descrição:** {vaga['Descricao']}")
+        st.markdown(f"**Salário oferecido:** {vaga['Salario']}")
         st.markdown("---")
