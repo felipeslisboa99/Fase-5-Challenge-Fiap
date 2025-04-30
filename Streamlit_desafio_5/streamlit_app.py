@@ -4,15 +4,16 @@ import difflib
 
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
-# ---------- CONFIG ----------
+# ---------- CONFIG ---------- #
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
 
-# ---------- FUNÇÕES AUXILIARES ----------
+# ---------- FUNÇÕES AUXILIARES ---------- #
 @st.cache_data
 def carregar_vagas():
     vagas = pd.read_excel(CAMINHO_VAGAS)
     vagas.rename(columns={
         "Título da vaga": "Vaga",
+        "Tipo": "Tipo",
         "Área": "Area",
         "Habilidades": "Habilidades",
         "Nível de inglês": "Level de Ingles",
@@ -30,11 +31,17 @@ def calcular_score(candidato, vaga):
     score = 0
     peso_total = 0
 
-    # Título
+    # Título da vaga
     if isinstance(candidato["Título da vaga desejada"], str) and isinstance(vaga["Vaga"], str):
         ratio = difflib.SequenceMatcher(None, candidato["Título da vaga desejada"].lower(), vaga["Vaga"].lower()).ratio()
         score += ratio * 2
         peso_total += 2
+
+    # Tipo (Júnior, Pleno, Sênior)
+    if isinstance(candidato["Tipo da vaga desejada"], str) and isinstance(vaga["Tipo"], str):
+        if candidato["Tipo da vaga desejada"].lower() == vaga["Tipo"].lower():
+            score += 1
+        peso_total += 1
 
     # Área
     if isinstance(candidato["Área de interesse"], str) and isinstance(vaga["Area"], str):
@@ -60,13 +67,13 @@ def calcular_score(candidato, vaga):
             score += 1
         peso_total += 1
 
-    # Viagem
+    # Viagens
     if isinstance(candidato["Disponível para viagens? (Sim/Não)"], str) and isinstance(vaga["Precisa Viajar"], str):
         if candidato["Disponível para viagens? (Sim/Não)"].lower() == vaga["Precisa Viajar"].lower():
             score += 1
         peso_total += 1
 
-    # Skills técnicas
+    # Competências técnicas
     candidato_skills = set(str(candidato["Competências técnicas"]).lower().split(",")) if isinstance(candidato["Competências técnicas"], str) else set()
     vaga_skills = set(str(vaga["Habilidades"]).lower().split(",")) if isinstance(vaga["Habilidades"], str) else set()
     intersecao = candidato_skills.intersection(vaga_skills)
@@ -74,9 +81,21 @@ def calcular_score(candidato, vaga):
         score += len(intersecao) / len(vaga_skills) * 3
         peso_total += 3
 
+    # Outros idiomas
+    if isinstance(candidato["Outros idiomas"], str) and isinstance(vaga["Outros idiomas"], str):
+        if candidato["Outros idiomas"].lower() in vaga["Outros idiomas"].lower():
+            score += 1
+        peso_total += 1
+
+    # Descrição da vaga
+    if isinstance(vaga["Descricao"], str) and isinstance(candidato["Competências técnicas"], str):
+        ratio_desc = difflib.SequenceMatcher(None, candidato["Competências técnicas"].lower(), vaga["Descricao"].lower()).ratio()
+        score += ratio_desc * 2
+        peso_total += 2
+
     return round((score / peso_total) * 100, 2) if peso_total else 0
 
-# ---------- INTERFACE STREAMLIT ----------
+# ---------- INTERFACE STREAMLIT ---------- #
 vagas_df = carregar_vagas()
 titulos_disponiveis = sorted(vagas_df["Vaga"].dropna().unique())
 
@@ -86,6 +105,7 @@ st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
 with st.form("formulario_candidato"):
     st.subheader("📄 Dados do Candidato")
     titulo = st.selectbox("Título da vaga desejada", titulos_disponiveis)
+    tipo = st.selectbox("Tipo da vaga desejada", ["Júnior", "Pleno", "Sênior"])
     area = st.text_input("Área de interesse")
     ingles = st.selectbox("Nível de inglês", ["Nenhum", "Básico", "Intermediário", "Avançado", "Fluente"])
     espanhol = st.selectbox("Nível de espanhol", ["Nenhum", "Básico", "Intermediário", "Avançado", "Fluente"])
@@ -101,6 +121,7 @@ with st.form("formulario_candidato"):
 if enviado:
     candidato = {
         "Título da vaga desejada": titulo,
+        "Tipo da vaga desejada": tipo,
         "Área de interesse": area,
         "Nível de inglês": ingles,
         "Nível de espanhol": espanhol,
@@ -121,6 +142,7 @@ if enviado:
 
     for i, vaga in top_vagas.iterrows():
         st.markdown(f"### {vaga['Vaga']}")
+        st.markdown(f"**Tipo:** {vaga['Tipo']}")
         st.markdown(f"**Área:** {vaga['Area']}")
         st.markdown(f"**Cliente:** {vaga['Empresa']}")
         st.markdown(f"**Score de compatibilidade:** {vaga['ia_score']}%")
