@@ -12,7 +12,7 @@ ABA_PLANILHA = "Dados"
 
 # ------------------ FUNCAO GOOGLE SHEETS ------------------
 def salvar_em_google_sheets(novo_df):
-    creds = service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
+    creds = service_account.Credentials.from_service_account_info(st.secrets["service_account"])
     client = gspread.authorize(creds)
 
     try:
