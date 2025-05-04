@@ -1,13 +1,31 @@
 import streamlit as st
 import pandas as pd
 import difflib
-import os
+import gspread
+from google.oauth2 import service_account
+from gspread_dataframe import set_with_dataframe
 
-st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
-
+# ------------------ CONFIGURACOES ------------------
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
-CAMINHO_CANDIDATOS = "Modelo_Candidato_Simplificado.xlsx"  # Corrigido para gravar fora da subpasta
+NOME_PLANILHA_GOOGLE = "Candidatos"
+ABA_PLANILHA = "Dados"
 
+# ------------------ FUNCAO GOOGLE SHEETS ------------------
+def salvar_em_google_sheets(novo_df):
+    creds = service_account.Credentials.from_service_account_info(st.secrets["gcp_service_account"])
+    client = gspread.authorize(creds)
+
+    try:
+        sheet = client.open(NOME_PLANILHA_GOOGLE).worksheet(ABA_PLANILHA)
+    except:
+        sheet = client.open(NOME_PLANILHA_GOOGLE).add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
+
+    existing = pd.DataFrame(sheet.get_all_records())
+    df_final = pd.concat([existing, novo_df], ignore_index=True)
+    sheet.clear()
+    set_with_dataframe(sheet, df_final)
+
+# ------------------ CARREGAR VAGAS ------------------
 @st.cache_data
 def carregar_vagas():
     vagas = pd.read_excel(CAMINHO_VAGAS)
@@ -27,6 +45,7 @@ def carregar_vagas():
     }, inplace=True)
     return vagas
 
+# ------------------ CALCULAR SCORE ------------------
 def calcular_score(candidato, vaga):
     score = 0
     peso_total = 0
@@ -74,30 +93,17 @@ def calcular_score(candidato, vaga):
         score += len(intersecao) / len(vaga_skills) * 3
         peso_total += 3
 
-    if isinstance(candidato["Outros idiomas"], str) and isinstance(vaga["Outros idiomas"], str):
-        if candidato["Outros idiomas"].lower() in vaga["Outros idiomas"].lower():
-            score += 1
-        peso_total += 1
-
-    if isinstance(vaga["Descricao"], str) and isinstance(candidato["Competências técnicas"], list):
-        desc_text = vaga["Descricao"].lower()
-        match_count = sum(1 for skill in candidato["Competências técnicas"] if skill.lower() in desc_text)
-        if len(candidato["Competências técnicas"]) > 0:
-            score += (match_count / len(candidato["Competências técnicas"])) * 2
-            peso_total += 2
-
     return round((score / peso_total) * 100, 2) if peso_total else 0
 
-# ---------- INTERFACE ---------- #
+# ------------------ INTERFACE STREAMLIT ------------------
+st.title("🔍 Plataforma de Match de Vagas")
+st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
+
 vagas_df = carregar_vagas()
 titulos_disponiveis = sorted(vagas_df["Vaga"].dropna().unique())
 areas_disponiveis = sorted(vagas_df["Area"].dropna().unique())
-
 todas_habilidades = vagas_df["Habilidades"].dropna().str.cat(sep=",").lower().split(",")
 habilidades_unicas = sorted(set(h.strip().capitalize() for h in todas_habilidades if h.strip() != ""))
-
-st.title("🔍 Plataforma de Match de Vagas")
-st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
 
 with st.form("formulario_candidato"):
     st.subheader("📄 Dados do Candidato")
@@ -115,7 +121,6 @@ with st.form("formulario_candidato"):
     viagens = st.selectbox("Disponível para viagens?", ["Sim", "Não"])
     equipamento = st.selectbox("Possui equipamento próprio?", ["Sim", "Não"])
     salario = st.text_input("Expectativa salarial")
-
     enviado = st.form_submit_button("🔎 Encontrar Vagas")
 
 if enviado:
@@ -136,23 +141,12 @@ if enviado:
         "Expectativa salarial": salario
     }
 
-    # ---------- SALVAR NO EXCEL ----------
     novo_candidato_df = pd.DataFrame([candidato])
     novo_candidato_df["Competências técnicas"] = [", ".join(tecnicas)]
+    salvar_em_google_sheets(novo_candidato_df)
 
-    try:
-        if os.path.exists(CAMINHO_CANDIDATOS):
-            df_existente = pd.read_excel(CAMINHO_CANDIDATOS)
-            df_final = pd.concat([df_existente, novo_candidato_df], ignore_index=True)
-            df_final.to_excel(CAMINHO_CANDIDATOS, index=False)
-        else:
-            novo_candidato_df.to_excel(CAMINHO_CANDIDATOS, index=False)
+    st.success("📝 Dados salvos no Google Sheets com sucesso!")
 
-        st.success("📝 Seus dados foram salvos com sucesso!")
-    except Exception as e:
-        st.error(f"Erro ao salvar candidato: {e}")
-
-    # ---------- CÁLCULO DE MATCH ----------
     st.info("🔄 Processando suas informações...")
     vagas_df["ia_score"] = vagas_df.apply(lambda row: calcular_score(candidato, row), axis=1)
     top_vagas = vagas_df.sort_values(by="ia_score", ascending=False).head(5)
@@ -170,4 +164,3 @@ if enviado:
         st.markdown(f"**Descrição:** {vaga['Descricao']}")
         st.markdown(f"**Salário oferecido:** {vaga['Salario']}")
         st.markdown("---")
-
