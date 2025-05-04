@@ -1,28 +1,32 @@
 import streamlit as st
 import pandas as pd
-import difflib
 import gspread
 from google.oauth2 import service_account
 from gspread_dataframe import set_with_dataframe
 
-# ------------------ CONFIGURAÇÕES ------------------
+# Configurações
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
-NOME_PLANILHA_GOOGLE = "Modelo_Candidato_Simplificado.xlsx"
+NOME_PLANILHA_GOOGLE = "Modelo_Candidato_Simplificado"
 ABA_PLANILHA = "Dados"
 
-# ------------------ FUNÇÃO GOOGLE SHEETS ------------------
+# Função para salvar no Google Sheets
 def salvar_em_google_sheets(novo_df):
     creds = service_account.Credentials.from_service_account_info(
         st.secrets["service_account"],
-        scopes=["https://www.googleapis.com/auth/spreadsheets"]
+        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     )
     client = gspread.authorize(creds)
-    spreadsheet = client.open(NOME_PLANILHA_GOOGLE)
 
     try:
-        sheet = client.open(NOME_PLANILHA_GOOGLE).worksheet(ABA_PLANILHA)
+        spreadsheet = client.open(NOME_PLANILHA_GOOGLE)
+    except Exception as e:
+        st.error(f"Erro ao abrir planilha: {e}")
+        return
+
+    try:
+        sheet = spreadsheet.worksheet(ABA_PLANILHA)
     except gspread.exceptions.WorksheetNotFound:
-        sheet = client.open(NOME_PLANILHA_GOOGLE).add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
+        sheet = spreadsheet.add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
 
     try:
         existing = pd.DataFrame(sheet.get_all_records())
