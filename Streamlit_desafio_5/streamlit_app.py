@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
-CAMINHO_CANDIDATOS = "Streamlit_desafio_5/Candidatos.xlsx"
+CAMINHO_CANDIDATOS = "Streamlit_desafio_5/Modelo_Candidato_Simplificado.xlsx"
 
 @st.cache_data
 def carregar_vagas():
