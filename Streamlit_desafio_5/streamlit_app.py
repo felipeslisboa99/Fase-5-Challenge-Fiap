@@ -12,7 +12,9 @@ ABA_PLANILHA = "Dados"
 
 # ------------------ FUNCAO GOOGLE SHEETS ------------------
 def salvar_em_google_sheets(novo_df):
-    creds = service_account.Credentials.from_service_account_info(st.secrets["service_account"])
+    creds = service_account.Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"]
+    )
     client = gspread.authorize(creds)
 
     try:
@@ -96,7 +98,7 @@ def calcular_score(candidato, vaga):
     return round((score / peso_total) * 100, 2) if peso_total else 0
 
 # ------------------ INTERFACE STREAMLIT ------------------
-st.title("🔍 Plataforma de Match de Vagas")
+st.title("\U0001F50D Plataforma de Match de Vagas")
 st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
 
 vagas_df = carregar_vagas()
@@ -106,7 +108,7 @@ todas_habilidades = vagas_df["Habilidades"].dropna().str.cat(sep=",").lower().sp
 habilidades_unicas = sorted(set(h.strip().capitalize() for h in todas_habilidades if h.strip() != ""))
 
 with st.form("formulario_candidato"):
-    st.subheader("📄 Dados do Candidato")
+    st.subheader("\U0001F4C4 Dados do Candidato")
     nome = st.text_input("Nome completo")
     cpf = st.text_input("CPF")
     cidade = st.text_input("Cidade onde mora")
@@ -121,7 +123,7 @@ with st.form("formulario_candidato"):
     viagens = st.selectbox("Disponível para viagens?", ["Sim", "Não"])
     equipamento = st.selectbox("Possui equipamento próprio?", ["Sim", "Não"])
     salario = st.text_input("Expectativa salarial")
-    enviado = st.form_submit_button("🔎 Encontrar Vagas")
+    enviado = st.form_submit_button("\U0001F50E Encontrar Vagas")
 
 if enviado:
     candidato = {
@@ -145,14 +147,14 @@ if enviado:
     novo_candidato_df["Competências técnicas"] = [", ".join(tecnicas)]
     salvar_em_google_sheets(novo_candidato_df)
 
-    st.success("📝 Dados salvos no Google Sheets com sucesso!")
+    st.success("\U0001F4DD Dados salvos no Google Sheets com sucesso!")
 
-    st.info("🔄 Processando suas informações...")
+    st.info("\U0001F504 Processando suas informações...")
     vagas_df["ia_score"] = vagas_df.apply(lambda row: calcular_score(candidato, row), axis=1)
     top_vagas = vagas_df.sort_values(by="ia_score", ascending=False).head(5)
 
-    st.success("✅ Veja abaixo suas vagas com maior compatibilidade!")
-    st.subheader("🏆 Top 5 Vagas Compatíveis")
+    st.success("\u2705 Veja abaixo suas vagas com maior compatibilidade!")
+    st.subheader("\U0001F3C6 Top 5 Vagas Compatíveis")
 
     for _, vaga in top_vagas.iterrows():
         st.markdown(f"### {vaga['Vaga']}")
