@@ -6,7 +6,7 @@ import os
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
-CAMINHO_CANDIDATOS = "Streamlit_desafio_5/Modelo_Candidato_Simplificado.xlsx"
+CAMINHO_CANDIDATOS = "Modelo_Candidato_Simplificado.xlsx"  # Corrigido para gravar fora da subpasta
 
 @st.cache_data
 def carregar_vagas():
@@ -142,10 +142,12 @@ if enviado:
 
     try:
         if os.path.exists(CAMINHO_CANDIDATOS):
-            with pd.ExcelWriter(CAMINHO_CANDIDATOS, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
-                novo_candidato_df.to_excel(writer, sheet_name="Sheet1", index=False, header=False)
+            df_existente = pd.read_excel(CAMINHO_CANDIDATOS)
+            df_final = pd.concat([df_existente, novo_candidato_df], ignore_index=True)
+            df_final.to_excel(CAMINHO_CANDIDATOS, index=False)
         else:
             novo_candidato_df.to_excel(CAMINHO_CANDIDATOS, index=False)
+
         st.success("📝 Seus dados foram salvos com sucesso!")
     except Exception as e:
         st.error(f"Erro ao salvar candidato: {e}")
@@ -168,3 +170,4 @@ if enviado:
         st.markdown(f"**Descrição:** {vaga['Descricao']}")
         st.markdown(f"**Salário oferecido:** {vaga['Salario']}")
         st.markdown("---")
+
