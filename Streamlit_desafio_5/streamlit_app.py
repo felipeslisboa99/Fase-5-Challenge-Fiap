@@ -4,6 +4,8 @@ import gspread
 import difflib
 from google.oauth2 import service_account
 from gspread_dataframe import set_with_dataframe
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Configurações
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
@@ -38,8 +40,6 @@ def salvar_em_google_sheets(novo_df):
     sheet.clear()
     set_with_dataframe(sheet, df_final)
 
-
-# ------------------ CARREGAR VAGAS ------------------
 @st.cache_data
 def carregar_vagas():
     vagas = pd.read_excel(CAMINHO_VAGAS)
@@ -59,15 +59,29 @@ def carregar_vagas():
     }, inplace=True)
     return vagas
 
-# ------------------ CALCULAR SCORE ------------------
+# --- Conversão ordinal de níveis ---
+ordem_idioma = {"nenhum": 0, "básico": 1, "intermediário": 2, "avançado": 3, "fluente": 4}
+
+def idioma_score(candidato_nivel, vaga_nivel):
+    c = ordem_idioma.get(candidato_nivel.lower(), 0)
+    v = ordem_idioma.get(vaga_nivel.lower(), 0)
+    return 1 if c >= v else 0
+
+# --- Cálculo de similaridade TF-IDF para habilidades ---
+def similaridade_habilidades(candidato_skills, vaga_skills):
+    corpus = [candidato_skills, vaga_skills]
+    vectorizer = TfidfVectorizer().fit_transform(corpus)
+    sim = cosine_similarity(vectorizer[0:1], vectorizer[1:2])
+    return sim[0][0]
+
 def calcular_score(candidato, vaga):
     score = 0
     peso_total = 0
 
     if isinstance(candidato["Título da vaga desejada"], str) and isinstance(vaga["Vaga"], str):
         ratio = difflib.SequenceMatcher(None, candidato["Título da vaga desejada"].lower(), vaga["Vaga"].lower()).ratio()
-        score += ratio * 2
-        peso_total += 2
+        score += ratio * 3
+        peso_total += 3
 
     if isinstance(candidato["Tipo da vaga desejada"], str) and isinstance(vaga["Tipo"], str):
         if candidato["Tipo da vaga desejada"].lower() == vaga["Tipo"].lower():
@@ -79,40 +93,29 @@ def calcular_score(candidato, vaga):
             score += 1
         peso_total += 1
 
-    if isinstance(candidato["Nível de inglês"], str) and isinstance(vaga["Level de Ingles"], str):
-        if candidato["Nível de inglês"].lower() in vaga["Level de Ingles"].lower():
-            score += 1
-        peso_total += 1
+    score += idioma_score(candidato["Nível de inglês"], vaga["Level de Ingles"])
+    peso_total += 1
+    score += idioma_score(candidato["Nível de espanhol"], vaga["Level de Espanhol"])
+    peso_total += 1
 
-    if isinstance(candidato["Nível de espanhol"], str) and isinstance(vaga["Level de Espanhol"], str):
-        if candidato["Nível de espanhol"].lower() in vaga["Level de Espanhol"].lower():
-            score += 1
-        peso_total += 1
+    if candidato["Possui equipamento próprio? (Sim/Não)"].lower() == "sim" and "não" not in vaga["Precisa de Equipamento"].lower():
+        score += 1
+    peso_total += 1
 
-    if isinstance(candidato["Possui equipamento próprio? (Sim/Não)"], str) and isinstance(vaga["Precisa de Equipamento"], str):
-        if candidato["Possui equipamento próprio? (Sim/Não)"].lower() == "sim" and "não" not in vaga["Precisa de Equipamento"].lower():
-            score += 1
-        peso_total += 1
+    if candidato["Disponível para viagens? (Sim/Não)"].lower() == vaga["Precisa Viajar"].lower():
+        score += 1
+    peso_total += 1
 
-    if isinstance(candidato["Disponível para viagens? (Sim/Não)"], str) and isinstance(vaga["Precisa Viajar"], str):
-        if candidato["Disponível para viagens? (Sim/Não)"].lower() == vaga["Precisa Viajar"].lower():
-            score += 1
-        peso_total += 1
-
-    candidato_skills = set(h.lower() for h in candidato["Competências técnicas"]) if isinstance(candidato["Competências técnicas"], list) else set()
-    vaga_skills = set(str(vaga["Habilidades"]).lower().split(",")) if isinstance(vaga["Habilidades"], str) else set()
-    vaga_skills = set(h.strip() for h in vaga_skills)
-    intersecao = candidato_skills.intersection(vaga_skills)
-    if vaga_skills:
-        score += len(intersecao) / len(vaga_skills) * 3
-        peso_total += 3
+    candidato_skills = ", ".join(candidato["Competências técnicas"]).lower() if isinstance(candidato["Competências técnicas"], list) else ""
+    vaga_skills = str(vaga["Habilidades"]).lower()
+    sim_hab = similaridade_habilidades(candidato_skills, vaga_skills)
+    score += sim_hab * 4
+    peso_total += 4
 
     return round((score / peso_total) * 100, 2) if peso_total else 0
 
-# ------------------ INTERFACE STREAMLIT ------------------
-st.title("🔍 Plataforma de Match de Vagas")
-st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
-
+# Interface Streamlit
+st.title("🤖 Match Inteligente de Vagas com IA")
 vagas_df = carregar_vagas()
 titulos_disponiveis = sorted(vagas_df["Vaga"].dropna().unique())
 areas_disponiveis = sorted(vagas_df["Area"].dropna().unique())
@@ -120,7 +123,6 @@ todas_habilidades = vagas_df["Habilidades"].dropna().str.cat(sep=", ").lower().s
 habilidades_unicas = sorted(set(h.strip().capitalize() for h in todas_habilidades if h.strip() != ""))
 
 with st.form("formulario_candidato"):
-    st.subheader("📄 Dados do Candidato")
     nome = st.text_input("Nome completo")
     cpf = st.text_input("CPF")
     cidade = st.text_input("Cidade onde mora")
@@ -159,21 +161,19 @@ if enviado:
     novo_candidato_df["Competências técnicas"] = [", ".join(tecnicas)]
     salvar_em_google_sheets(novo_candidato_df)
 
-    st.success("📝 Dados salvos no Google Sheets com sucesso!")
+    st.success("Dados salvos no Google Sheets com sucesso!")
 
-    st.info("🔄 Processando suas informações...")
+    st.info("🔄 Calculando compatibilidade...")
     vagas_df["ia_score"] = vagas_df.apply(lambda row: calcular_score(candidato, row), axis=1)
     top_vagas = vagas_df.sort_values(by="ia_score", ascending=False).head(5)
 
-    st.success("✅ Veja abaixo suas vagas com maior compatibilidade!")
     st.subheader("🏆 Top 5 Vagas Compatíveis")
-
     for _, vaga in top_vagas.iterrows():
         st.markdown(f"### {vaga['Vaga']}")
         st.markdown(f"**Tipo:** {vaga['Tipo']}")
         st.markdown(f"**Área:** {vaga['Area']}")
         st.markdown(f"**Cliente:** {vaga['Empresa']}")
-        st.markdown(f"**Score de compatibilidade:** {vaga['ia_score']}%")
+        st.markdown(f"**Score IA:** {vaga['ia_score']}%")
         st.markdown(f"**Requisitos:** {vaga['Habilidades']}")
         st.markdown(f"**Descrição:** {vaga['Descricao']}")
         st.markdown(f"**Salário oferecido:** {vaga['Salario']}")
