@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import difflib
 import os
-from openpyxl import load_workbook
 
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
@@ -141,17 +140,15 @@ if enviado:
     novo_candidato_df = pd.DataFrame([candidato])
     novo_candidato_df["Competências técnicas"] = [", ".join(tecnicas)]
 
-    if os.path.exists(CAMINHO_CANDIDATOS):
-        with pd.ExcelWriter(CAMINHO_CANDIDATOS, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
-            book = load_workbook(CAMINHO_CANDIDATOS)
-            writer.book = book
-            writer.sheets = {ws.title: ws for ws in book.worksheets}
-            startrow = writer.sheets['Sheet1'].max_row
-            novo_candidato_df.to_excel(writer, index=False, header=False, startrow=startrow)
-    else:
-        novo_candidato_df.to_excel(CAMINHO_CANDIDATOS, index=False)
-
-    st.success("📝 Seus dados foram salvos com sucesso!")
+    try:
+        if os.path.exists(CAMINHO_CANDIDATOS):
+            with pd.ExcelWriter(CAMINHO_CANDIDATOS, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
+                novo_candidato_df.to_excel(writer, sheet_name="Sheet1", index=False, header=False)
+        else:
+            novo_candidato_df.to_excel(CAMINHO_CANDIDATOS, index=False)
+        st.success("📝 Seus dados foram salvos com sucesso!")
+    except Exception as e:
+        st.error(f"Erro ao salvar candidato: {e}")
 
     # ---------- CÁLCULO DE MATCH ----------
     st.info("🔄 Processando suas informações...")
