@@ -20,9 +20,9 @@ def salvar_em_google_sheets(novo_df):
     spreadsheet = client.open(NOME_PLANILHA_GOOGLE)
 
     try:
-        sheet = spreadsheet.worksheet(ABA_PLANILHA)
+        sheet = client.open(NOME_PLANILHA_GOOGLE).worksheet(ABA_PLANILHA)
     except gspread.exceptions.WorksheetNotFound:
-        sheet = spreadsheet.add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
+        sheet = client.open(NOME_PLANILHA_GOOGLE).add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
 
     try:
         existing = pd.DataFrame(sheet.get_all_records())
