@@ -1,38 +1,27 @@
 import streamlit as st
 import pandas as pd
+import difflib
 import gspread
 from google.oauth2 import service_account
 from gspread_dataframe import set_with_dataframe
 
-# Configurações
+# ------------------ CONFIGURACOES ------------------
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
 NOME_PLANILHA_GOOGLE = "Modelo_Candidato_Simplificado"
 ABA_PLANILHA = "Dados"
 
-# Função para salvar no Google Sheets
+# ------------------ FUNCAO GOOGLE SHEETS ------------------
 def salvar_em_google_sheets(novo_df):
-    creds = service_account.Credentials.from_service_account_info(
-        st.secrets["service_account"],
-        scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    )
+    creds = service_account.Credentials.from_service_account_info(st.secrets["service_account"])
     client = gspread.authorize(creds)
 
     try:
-        spreadsheet = client.open(NOME_PLANILHA_GOOGLE)
-    except Exception as e:
-        st.error(f"Erro ao abrir planilha: {e}")
-        return
-
-    try:
-        sheet = spreadsheet.worksheet(ABA_PLANILHA)
-    except gspread.exceptions.WorksheetNotFound:
-        sheet = spreadsheet.add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
-
-    try:
-        existing = pd.DataFrame(sheet.get_all_records())
+        sheet = client.open(NOME_PLANILHA_GOOGLE).worksheet(ABA_PLANILHA)
     except:
-        existing = pd.DataFrame()
+        sheet = client.open(NOME_PLANILHA_GOOGLE).add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
 
+    existing_records = sheet.get_all_records()
+    existing = pd.DataFrame(existing_records) if existing_records else pd.DataFrame()
     df_final = pd.concat([existing, novo_df], ignore_index=True)
     sheet.clear()
     set_with_dataframe(sheet, df_final)
@@ -114,7 +103,7 @@ st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
 vagas_df = carregar_vagas()
 titulos_disponiveis = sorted(vagas_df["Vaga"].dropna().unique())
 areas_disponiveis = sorted(vagas_df["Area"].dropna().unique())
-todas_habilidades = vagas_df["Habilidades"].dropna().str.cat(sep=",").lower().split(",")
+todas_habilidades = vagas_df["Habilidades"].dropna().str.cat(sep=", ").lower().split(",")
 habilidades_unicas = sorted(set(h.strip().capitalize() for h in todas_habilidades if h.strip() != ""))
 
 with st.form("formulario_candidato"):
