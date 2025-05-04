@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 import difflib
+import os
+from openpyxl import load_workbook
 
 st.set_page_config(page_title="Match de Vagas", page_icon="💼", layout="centered")
 
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
+CAMINHO_CANDIDATOS = "Streamlit_desafio_5/Candidatos.xlsx"
 
 @st.cache_data
 def carregar_vagas():
@@ -86,19 +89,22 @@ def calcular_score(candidato, vaga):
 
     return round((score / peso_total) * 100, 2) if peso_total else 0
 
-# --- Carregar dados e preparar listas ---
+# ---------- INTERFACE ---------- #
 vagas_df = carregar_vagas()
 titulos_disponiveis = sorted(vagas_df["Vaga"].dropna().unique())
 areas_disponiveis = sorted(vagas_df["Area"].dropna().unique())
+
 todas_habilidades = vagas_df["Habilidades"].dropna().str.cat(sep=",").lower().split(",")
 habilidades_unicas = sorted(set(h.strip().capitalize() for h in todas_habilidades if h.strip() != ""))
 
-# --- Interface ---
 st.title("🔍 Plataforma de Match de Vagas")
 st.markdown("Preencha abaixo e veja quais vagas combinam com você!")
 
 with st.form("formulario_candidato"):
     st.subheader("📄 Dados do Candidato")
+    nome = st.text_input("Nome completo")
+    cpf = st.text_input("CPF")
+    cidade = st.text_input("Cidade onde mora")
     titulo = st.selectbox("Título da vaga desejada", titulos_disponiveis)
     tipo = st.selectbox("Tipo da vaga desejada", ["Júnior", "Pleno", "Sênior"])
     area = st.selectbox("Área de interesse", areas_disponiveis)
@@ -115,6 +121,9 @@ with st.form("formulario_candidato"):
 
 if enviado:
     candidato = {
+        "Nome completo": nome,
+        "CPF": cpf,
+        "Cidade": cidade,
         "Título da vaga desejada": titulo,
         "Tipo da vaga desejada": tipo,
         "Área de interesse": area,
@@ -128,6 +137,23 @@ if enviado:
         "Expectativa salarial": salario
     }
 
+    # ---------- SALVAR NO EXCEL ----------
+    novo_candidato_df = pd.DataFrame([candidato])
+    novo_candidato_df["Competências técnicas"] = [", ".join(tecnicas)]
+
+    if os.path.exists(CAMINHO_CANDIDATOS):
+        with pd.ExcelWriter(CAMINHO_CANDIDATOS, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
+            book = load_workbook(CAMINHO_CANDIDATOS)
+            writer.book = book
+            writer.sheets = {ws.title: ws for ws in book.worksheets}
+            startrow = writer.sheets['Sheet1'].max_row
+            novo_candidato_df.to_excel(writer, index=False, header=False, startrow=startrow)
+    else:
+        novo_candidato_df.to_excel(CAMINHO_CANDIDATOS, index=False)
+
+    st.success("📝 Seus dados foram salvos com sucesso!")
+
+    # ---------- CÁLCULO DE MATCH ----------
     st.info("🔄 Processando suas informações...")
     vagas_df["ia_score"] = vagas_df.apply(lambda row: calcular_score(candidato, row), axis=1)
     top_vagas = vagas_df.sort_values(by="ia_score", ascending=False).head(5)
