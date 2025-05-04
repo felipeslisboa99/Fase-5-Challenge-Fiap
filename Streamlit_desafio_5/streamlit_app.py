@@ -12,23 +12,17 @@ ABA_PLANILHA = "Dados"
 
 # ------------------ FUNCAO GOOGLE SHEETS ------------------
 def salvar_em_google_sheets(novo_df):
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    creds = service_account.Credentials.from_service_account_info(
-        st.secrets["service_account"],
-        scopes=scopes
-    )
+    creds = service_account.Credentials.from_service_account_info(st.secrets["service_account"])
     client = gspread.authorize(creds)
 
     try:
         sheet = client.open(NOME_PLANILHA_GOOGLE).worksheet(ABA_PLANILHA)
-    except gspread.exceptions.WorksheetNotFound:
+    except gspread.WorksheetNotFound:
         sheet = client.open(NOME_PLANILHA_GOOGLE).add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
 
-    existing = pd.DataFrame(sheet.get_all_records())
+    dados_existentes = sheet.get_all_records()
+    existing = pd.DataFrame(dados_existentes) if dados_existentes else pd.DataFrame()
+
     df_final = pd.concat([existing, novo_df], ignore_index=True)
     sheet.clear()
     set_with_dataframe(sheet, df_final)
