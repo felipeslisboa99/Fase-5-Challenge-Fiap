@@ -7,7 +7,7 @@ from gspread_dataframe import set_with_dataframe
 
 # ------------------ CONFIGURAÇÕES ------------------
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
-NOME_PLANILHA_GOOGLE = "Modelo_Candidato_Simplificado"
+NOME_PLANILHA_GOOGLE = "Modelo_Candidato_Simplificado.xlsx"
 ABA_PLANILHA = "Dados"
 
 # ------------------ FUNÇÃO GOOGLE SHEETS ------------------
