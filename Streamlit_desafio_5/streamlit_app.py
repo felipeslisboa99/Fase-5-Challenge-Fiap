@@ -5,23 +5,28 @@ import gspread
 from google.oauth2 import service_account
 from gspread_dataframe import set_with_dataframe
 
-# ------------------ CONFIGURACOES ------------------
+# ------------------ CONFIGURAÇÕES ------------------
 CAMINHO_VAGAS = "Streamlit_desafio_5/Vagas.xlsx"
 NOME_PLANILHA_GOOGLE = "Modelo_Candidato_Simplificado"
 ABA_PLANILHA = "Dados"
 
-# ------------------ FUNCAO GOOGLE SHEETS ------------------
+# ------------------ FUNÇÃO GOOGLE SHEETS ------------------
 def salvar_em_google_sheets(novo_df):
-    creds = service_account.Credentials.from_service_account_info(st.secrets["service_account"])
+    creds = service_account.Credentials.from_service_account_info(
+        st.secrets["service_account"],
+        scopes=["https://www.googleapis.com/auth/spreadsheets"]
+    )
     client = gspread.authorize(creds)
 
     try:
         sheet = client.open(NOME_PLANILHA_GOOGLE).worksheet(ABA_PLANILHA)
-    except gspread.WorksheetNotFound:
+    except:
         sheet = client.open(NOME_PLANILHA_GOOGLE).add_worksheet(title=ABA_PLANILHA, rows="1000", cols="20")
 
-    dados_existentes = sheet.get_all_records()
-    existing = pd.DataFrame(dados_existentes) if dados_existentes else pd.DataFrame()
+    try:
+        existing = pd.DataFrame(sheet.get_all_records())
+    except:
+        existing = pd.DataFrame()
 
     df_final = pd.concat([existing, novo_df], ignore_index=True)
     sheet.clear()
